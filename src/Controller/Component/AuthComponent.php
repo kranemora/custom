@@ -2,6 +2,8 @@
 namespace Custom\Controller\Component;
 
 use Cake\Controller\Controller;
+use Cake\Event\Event;
+use Cake\Routing\Router;
 
 /**
  * Authentication control component class.
@@ -125,10 +127,114 @@ class AuthComponent extends \Cake\Controller\Component\AuthComponent
         'logoutRedirect' => null,
         'authError' => null,
         'unauthorizedRedirect' => true,
-        'storage' => 'Custom.Session',
+        'storage' => 'Custom.Session', // Hack from extended. Storage from custom
         'checkAuthIn' => 'Controller.startup'
     ];
 
+    /**
+     * Main execution method, handles initial authentication check and redirection
+     * of invalid users.
+     *
+     * The auth check is done when event name is same as the one configured in
+     * `checkAuthIn` config.
+     *
+     * @param \Cake\Event\Event $event Event instance.
+     * @return \Cake\Http\Response|null
+     * @throws \ReflectionException
+     */
+    public function authCheck(Event $event)
+    {
+        if ($this->_config['checkAuthIn'] !== $event->getName()) {
+            return null;
+        }
+
+        /** @var \Cake\Controller\Controller $controller */
+        $controller = $event->getSubject();
+
+        $action = strtolower($controller->getRequest()->getParam('action'));
+        if (!$controller->isAction($action)) {
+            return null;
+        }
+
+        $this->_setDefaults();
+
+        if ($this->_isAllowed($controller)) {
+            return null;
+        }
+
+        $isLoginAction = $this->_isLoginAction($controller);
+		// Hack from extended. Start. Bypass a las acciones de logout y de redirección de login para que no ocacionen bucles de redirecciones infinitas.
+        $isLogoutAction = $this->_isLogoutAction($controller);
+        $isLoginRedirect = $this->_isLoginRedirect($controller);
+		// Hack from extended. End. Bypass a las acciones de logout y de redirección de login para que no ocacionen bucles de redirecciones infinitas.
+
+        if (!$this->_getUser()) {
+            if ($isLoginAction) {
+                return null;
+            }
+            $result = $this->_unauthenticated($controller);
+            if ($result instanceof Response) {
+                $event->stopPropagation();
+            }
+
+            return $result;
+        }
+
+		
+		// Hack from extended. Start. Bypass a las acciones de logout y de redirección de login para que no ocacionen bucles de redirecciones infinitas.
+        if ($isLoginAction || $isLogoutAction || $isLoginRedirect) {
+            return null;
+        }
+		// Hack from extended. End. Bypass a las acciones de logout y de redirección de login para que no ocacionen bucles de redirecciones infinitas.
+
+        if ($isLoginAction ||
+            empty($this->_config['authorize']) ||
+            $this->isAuthorized($this->user())
+        ) {
+            return null;
+        }
+
+        $event->stopPropagation();
+
+        return $this->_unauthorized($controller);
+    }
+
+    /**
+     * Normalizes config `logoutAction` and checks if current request URL is same as logout action.
+     *
+     * @param \Cake\Controller\Controller $controller A reference to the controller object.
+     * @return bool True if current action is logout action else false.
+     */
+    protected function _isLogoutAction(Controller $controller)
+    {
+        $url = '';
+        if (isset($controller->request->url)) {
+            $url = $controller->request->url;
+        }
+        $url = Router::normalize($url);
+        $logoutAction = Router::normalize($this->_config['logoutAction']);
+
+        return $logoutAction === $url;
+    }
+
+    /**
+     * Normalizes config `loginRedirect` and checks if current request URL is same as logout action.
+     *
+     * @param \Cake\Controller\Controller $controller A reference to the controller object.
+     * @return bool True if current action is logout action else false.
+     */
+    protected function _isLoginRedirect(Controller $controller)
+    {
+        $url = '';
+        if (isset($controller->request->url)) {
+            $url = $controller->request->url;
+        }
+        $url = Router::normalize($url);
+        $loginRedirect = Router::normalize($this->redirectUrl());
+
+        return $loginRedirect === $url;
+    }
+    
     /**
      * Handles unauthenticated access attempt. First the `unauthenticated()` method
      * of the last authenticator in the chain will be called. The authenticator can
@@ -159,12 +265,16 @@ class AuthComponent extends \Cake\Controller\Component\AuthComponent
         }
 
         if (!$controller->getRequest()->is('ajax')) {
-			$storage = $this->storage();
-			if ($storage instanceof \Custom\Auth\Storage\StorageInterface && $storage->isTimeoutExpired()) {
+			// Hack from extended. Start. Incorporación de mensaje para timeout error.
+            //$this->flash($this->_config['authError']);
+            $storage = $this->storage();
+
+            if ($storage instanceof \Custom\Auth\Storage\StorageInterface && $storage->isTimeoutExpired()) {
 				$this->flash($this->_config['timeoutError']);
 			} else {
 				$this->flash($this->_config['authError']);
 			}
+			// Hack from extended. End. Incorporación de mensaje para timeout error.
 
             return $controller->redirect($this->_loginActionRedirectUrl());
         }
@@ -178,6 +288,57 @@ class AuthComponent extends \Cake\Controller\Component\AuthComponent
         }
 
         return $response->withStatus(403);
+    }
+
+    /**
+     * Handle unauthorized access attempt
+     *
+     * @param \Cake\Controller\Controller $controller A reference to the controller object
+     * @return \Cake\Http\Response
+     * @throws \Cake\Http\Exception\ForbiddenException
+     */
+    protected function _unauthorized(Controller $controller)
+    {
+        if ($this->_config['unauthorizedRedirect'] === false) {
+            throw new ForbiddenException($this->_config['authError']);
+        }
+
+        $this->flash($this->_config['authError']);
+        if ($this->_config['unauthorizedRedirect'] === true) {
+            $default = '/';
+            if (!empty($this->_config['loginRedirect'])) {
+                $default = $this->_config['loginRedirect'];
+            }
+            if (is_array($default)) {
+                $default['_base'] = false;
+            }
+            $url = $controller->referer($default, true);
+            
+			// Hack from extended. Start. Verifica que la redirección no sea igual a la acción actual bloqueada
+            /* Cuando el login es exitoso pero redirige a una página no autorizada, puede producirse un bucle infinito si se controla la presencia de un id de usuario en la forma:
+                if ($this->Auth->user('id')) {
+                    return $this->redirect($this->Auth->redirectUrl());
+                }
+            Ya que, al ser una página no autorizada, redirigirá la acción a la referencia; para este caso, el login. Pero al estar el usuario ya logeado, redirigirá nuevamente la acción a la página indicada en el login, que es justamente la página bloqueada. */
+            $urlPath = parse_url($url, PHP_URL_PATH);
+            $urlQuery = parse_url($url, PHP_URL_QUERY);
+            
+            parse_str($urlQuery, $urlQueryParsed);
+            
+            if (isset($urlQueryParsed['redirect']) && Router::normalize($urlQueryParsed['redirect']) == Router::normalize($this->_getUrlToRedirectBackTo()))  {
+                $url = $urlPath;
+                unset($urlQueryParsed['redirect']);
+                if (count($urlQueryParsed) > 0) {
+                    $url .= '?'.http_build_query($urlQueryParsed);
+                }
+            }
+ 			// Hack from extended. End. Verifica que la redirección no sea igual a la acción actual bloqueada
+           
+        } else {
+            $url = $this->_config['unauthorizedRedirect'];
+        }
+
+        return $controller->redirect($url);
     }
 
     /**
@@ -199,9 +360,14 @@ class AuthComponent extends \Cake\Controller\Component\AuthComponent
                 'action' => 'login',
                 'plugin' => null
             ],
+            'logoutAction' => [
+                'controller' => 'Users',
+                'action' => 'logout',
+                'plugin' => null
+            ], // Hack from extended. Default logout action
             'logoutRedirect' => $this->_config['loginAction'],
             'authError' => __d('cake', 'You are not authorized to access that location.'),
-            'timeoutError' => __d('custom', 'Your session has expired. Please log in.')
+            'timeoutError' => __d('custom', 'Your session has expired. Please log in.') // Hack from extended. Add timeoutError message
         ];
 
         $config = $this->getConfig();
