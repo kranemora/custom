@@ -291,6 +291,36 @@ class AuthComponent extends \Cake\Controller\Component\AuthComponent
     }
 
     /**
+     * Returns the URL of the login action to redirect to.
+     *
+     * This includes the redirect query string if applicable.
+     *
+     * @return array|string
+     */
+    protected function _loginActionRedirectUrl()
+    {
+        $urlToRedirectBackTo = $this->_getUrlToRedirectBackTo();
+
+        $loginAction = $this->_config['loginAction'];
+		
+        // Hack from extended. Start. Si la acción a la que se debe redireccionar es de logout se cancela la redirección.
+        //if ($urlToRedirectBackTo === '/') {
+        if ($urlToRedirectBackTo === '/' || $urlToRedirectBackTo === Router::normalize($this->_config['logoutAction'])) {
+            return $loginAction;
+        }
+        // Hack from extended. End. Si la acción a la que se debe redireccionar es de logout se cancela la redirección.
+
+        if (is_array($loginAction)) {
+            $loginAction['?'][static::QUERY_STRING_REDIRECT] = $urlToRedirectBackTo;
+        } else {
+            $char = strpos($loginAction, '?') === false ? '?' : '&';
+            $loginAction .= $char . static::QUERY_STRING_REDIRECT . '=' . urlencode($urlToRedirectBackTo);
+        }
+
+        return $loginAction;
+    }
+
+    /**
      * Handle unauthorized access attempt
      *
      * @param \Cake\Controller\Controller $controller A reference to the controller object

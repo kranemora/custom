@@ -23,7 +23,7 @@ composer require cakephp-extended/custom
 
 Mensaje de sesión expirada
 
-En la línea 34
+En la línea 34 del archivo webroot/index.php
 
 cambie: use Cake\Http\Server;
 
