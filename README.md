@@ -36,3 +36,15 @@ En vez de: $this->loadComponent('Auth');
 Si necesita personalizar la configuración del componente Auth agregue el storage de Custom.
 
 Por ejemplo: 'storage' => 'Custom.Session'
+
+
+Actualizar la información del usuario almacenada en la sesión con cada acción
+
+Utilize $this->Auth->refreshUser(); en el método initialize de AppController.
+Además, si va a autenticar por formulario, establezca 'Custom.Form' en la opción 'authenticate'
+
+$this->loadComponent('Custom.Auth', [
+    'authenticate' => [
+    	'Custom.Form'
+    ]
+]);

@@ -4,6 +4,7 @@ namespace Custom\Controller\Component;
 use Cake\Controller\Controller;
 use Cake\Event\Event;
 use Cake\Routing\Router;
+use Cake\Utility\Hash;
 
 /**
  * Authentication control component class.
@@ -408,4 +409,43 @@ class AuthComponent extends \Cake\Controller\Component\AuthComponent
         }
         $this->setConfig($defaults);
     }
+
+    /**
+     * Recupera la información del usuario almacenada en la sesión desde la base de datos.
+     *
+     * @param $id Identifier.
+     * @return bool|array Either false on failure, or an array of user data.
+     */
+	public function freshUser($id)
+	{
+		if (empty($this->_authenticateObjects)) {
+            $this->constructAuthenticate();
+        }
+        foreach ($this->_authenticateObjects as $auth) {
+            $result = $auth->freshUser($id);
+            if (!empty($result)) {
+                $this->_authenticationProvider = $auth;
+                $event = $this->dispatchEvent('Auth.afterRefreshUser', [$result, $auth]);
+                if ($event->getResult() !== null) {
+                    return $event->getResult();
+                }
+
+                return $result;
+            }
+        }
+
+        return false;
+	}
+	
+    /**
+     * Actualiza la información del usuario almacenada en la sesión con la obtenida de la base de datos.
+     *
+     * @return void
+     */
+	public function refreshUser()
+	{
+ 		if ($user = $this->freshUser($this->user('id'))) {
+			$this->setUser(Hash::merge($this->user(), $user));
+		}
+	}
 }
