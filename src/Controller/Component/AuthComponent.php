@@ -208,11 +208,8 @@ class AuthComponent extends \Cake\Controller\Component\AuthComponent
      */
     protected function _isLogoutAction(Controller $controller)
     {
-        $url = '';
-        if (isset($controller->request->url)) {
-            $url = $controller->request->url;
-        }
-        $url = Router::normalize($url);
+        $uri = $controller->request->getUri();
+        $url = Router::normalize($uri->getPath());
         $logoutAction = Router::normalize($this->_config['logoutAction']);
 
         return $logoutAction === $url;
@@ -226,11 +223,8 @@ class AuthComponent extends \Cake\Controller\Component\AuthComponent
      */
     protected function _isLoginRedirect(Controller $controller)
     {
-        $url = '';
-        if (isset($controller->request->url)) {
-            $url = $controller->request->url;
-        }
-        $url = Router::normalize($url);
+        $uri = $controller->request->getUri();
+        $url = Router::normalize($uri->getPath());
         $loginRedirect = Router::normalize($this->redirectUrl());
 
         return $loginRedirect === $url;
