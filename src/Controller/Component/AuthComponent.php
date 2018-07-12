@@ -364,7 +364,13 @@ class AuthComponent extends \Cake\Controller\Component\AuthComponent
                 }
             }
  			// Hack from extended. End. Verifica que la redirección no sea igual a la acción actual bloqueada
-           
+
+ 			// Hack from extended. Start. Si el permiso de la referencia cambió luego de la acción, se redirige a la página por defecto, que siempre estará disponible (Pasa cuando se emula a un usuario que no tiene permiso a una página que el usuario original si tiene)
+            if (Router::normalize($url) == Router::normalize($this->_getUrlToRedirectBackTo())) {
+                $url = $default;
+            }
+ 			// Hack from extended. End. Si el permiso de la referencia cambió luego de la acción, se redirige a la página por defecto, que siempre estará disponible (Pasa cuando se emula a un usuario que no tiene permiso a una página que el usuario original si tiene)
+        
         } else {
             $url = $this->_config['unauthorizedRedirect'];
         }
@@ -446,6 +452,38 @@ class AuthComponent extends \Cake\Controller\Component\AuthComponent
 	{
  		if ($user = $this->freshUser($this->user('id'))) {
 			$this->setUser(Hash::merge($this->user(), $user));
+		}
+	}
+
+	public function emulateUser($id)
+	{
+        if ($id != $this->user('id'))
+		{
+			if ($id == $this->user('restore.id'))
+			{
+				$this->restoreUser();
+			} 
+			else 
+			{
+				if ($user = $this->freshUser($id)) 
+				{
+					if (!$restore = $this->user('restore')) 
+					{
+						$restore = $this->user();
+					}
+					$user['restore'] = $restore;
+
+				}
+                $this->setUser($user);
+            }
+		}
+	}
+	
+	public function restoreUser()
+	{
+		if ($restore = $this->user('restore'))
+		{
+			$this->setUser($restore);
 		}
 	}
 }
