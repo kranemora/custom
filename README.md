@@ -48,3 +48,14 @@ $this->loadComponent('Custom.Auth', [
     	'Custom.Form'
     ]
 ]);
+
+
+Optimistic Lock
+
+Además, asegúrese de que no se estén generando tablas automáticamente (Auto-Tables)
+
+En los archivos de tablas
+
+cambie use Cake\ORM\Table;
+
+por: use Custom\ORM\Table;

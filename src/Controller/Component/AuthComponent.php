@@ -451,18 +451,12 @@ class AuthComponent extends \Cake\Controller\Component\AuthComponent
 
 	public function emulateUser($id)
 	{
-        if ($id != $this->user('id'))
-		{
-			if ($id == $this->user('restore.id'))
-			{
+        if ($id != $this->user('id')) {
+			if ($id == $this->user('restore.id')) {
 				$this->restoreUser();
-			} 
-			else 
-			{
-				if ($user = $this->freshUser($id)) 
-				{
-					if (!$restore = $this->user('restore')) 
-					{
+			} else {
+				if ($user = $this->freshUser($id)) {
+					if (!$restore = $this->user('restore')) {
 						$restore = $this->user();
 					}
 					$user['restore'] = $restore;
@@ -475,8 +469,7 @@ class AuthComponent extends \Cake\Controller\Component\AuthComponent
 	
 	public function restoreUser()
 	{
-		if ($restore = $this->user('restore'))
-		{
+		if ($restore = $this->user('restore')) {
 			$this->setUser($restore);
 		}
 	}
