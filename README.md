@@ -59,6 +59,16 @@ $this->loadComponent('Custom.Auth', [
 ]);
 ```
 
+## Priorización de los Helpers de Custom en Lazy Load
+
+En src/View/AppView.php
+
+```
+cambie: use Cake\View\View;
+
+por: use Custom\View\View;
+```
+
 ## Optimistic Lock
 
 ```
