@@ -82,3 +82,13 @@ cambie: use Cake\ORM\Table;
 
 por: use Custom\ORM\Table;
 ```
+
+## Paginate coherencia en el comportamiento cuando se exceden los límites
+
+En el archivo AppController.php de la aplicación
+
+```
+cambie: use Cake\Controller\Controller;
+
+por: use Custom\Controller\Controller;
+```
