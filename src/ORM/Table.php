@@ -16,5 +16,6 @@ namespace Custom\ORM;
 
 class Table extends \Cake\ORM\Table
 {
-	use OptimisticLockTableTrait;
+	use PrefixSuffixTableTrait;
+    use OptimisticLockTableTrait;
 }
