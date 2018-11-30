@@ -64,6 +64,8 @@ En el archivo de configuración bootstrap.php del plugin
 ```
 incluir 
 
+use Cake\Core\Configure;
+
 if (!Configure::check('Accounts.Datasources.default.prefix')) {
     Configure::write('Accounts.Datasources.default.prefix', 'accounts_');
 }
@@ -87,6 +89,14 @@ en el método initialize() antes que la llamada a su antecesor parent::initializ
 
 ```
 Asegúrese de que no se estén generando tablas automáticamente (Auto-Tables)
+
+Si está incluyendo optimistic lock en un plugin incorpore 
+
+        $this->belongsToMany('Users', [
+            ...
+            'through' => 'Plugin.UsersGroups',
+            ...
+        ]);
 ```
 
 En los archivos de tablas
@@ -95,6 +105,26 @@ En los archivos de tablas
 cambie: use Cake\ORM\Table;
 
 por: use Custom\ORM\Table;
+```
+
+```
+Asegúrese de incluir lockhash en el arreglo de campos accesibles
+    
+    protected $_accessible = [
+        ...
+        'lockhash' => true,
+        ...
+    ];
+```
+
+```
+Asegúrese de incluir lockhash en el arreglo de campos exluidos para la versión JSON de las entidades
+    
+    protected $_hidden = [
+        ...
+        'lockhash'
+        ...
+    ];
 ```
 
 ## Paginate coherencia en el comportamiento cuando se exceden los límites
