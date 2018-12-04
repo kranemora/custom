@@ -11,7 +11,7 @@ use Custom\ORM\Association\BelongsToMany;
  * @author Florian Krämer
  * @license MIT
  */
-trait PrefixSuffixTableTrait {
+trait FullNameTableTrait {
 	/**
 	 * The table prefix to use.
 	 *
@@ -19,14 +19,33 @@ trait PrefixSuffixTableTrait {
 	 */
 	protected $_tablePrefix = '';
 	protected $_tableSuffix = '';
+    protected $_tableOwner = '';
+    protected $_tableSimpleName = '';
     protected $_allowPrefix = true;
     protected $_allowSuffix = false;
+    protected $_useOwner = false;
     
     public function initialize(array $config)
     {
-        $conn = ($config['connection']->config());
+        $conn = $config['connection']->config();
+        $this->_tableOwner = $conn['database'];
+        
         if (strpos($config['registryAlias'], '.')) {
             list($plugin) = pluginSplit($config['registryAlias'], false);
+            if (Configure::check($plugin.'.Datasources.'.$conn['name'].'.allowPrefix')) {
+                $this->setAllowPrefix(Configure::read($plugin.'.Datasources.'.$conn['name'].'.allowPrefix'));
+            } elseif (Configure::check('App.Datasources.'.$conn['name'].'.allowPrefix')) {
+                $this->setAllowPrefix(Configure::read('App.Datasources.'.$conn['name'].'.allowPrefix'));
+            } elseif (array_key_exists('allowPrefix', $conn)){
+                $this->setAllowPrefix($conn['allowPrefix']);
+            }
+            if (Configure::check($plugin.'.Datasources.'.$conn['name'].'.allowSuffix')) {
+                $this->setAllowSuffix(Configure::read($plugin.'.Datasources.'.$conn['name'].'.allowSuffix'));
+            } elseif (Configure::check('App.Datasources.'.$conn['name'].'.allowSuffix')) {
+                $this->setAllowSuffix(Configure::read('App.Datasources.'.$conn['name'].'.allowSuffix'));
+            } elseif (array_key_exists('allowSuffix', $conn)){
+                $this->setAllowSuffix($conn['allowSuffix']);
+            }
             if (Configure::check($plugin.'.Datasources.'.$conn['name'].'.prefix')) {
                 $this->setPrefix(Configure::read($plugin.'.Datasources.'.$conn['name'].'.prefix'));
             } elseif (Configure::check('App.Datasources.'.$conn['name'].'.prefix')) {
@@ -41,8 +60,25 @@ trait PrefixSuffixTableTrait {
             } elseif (array_key_exists('suffix', $conn)){
                 $this->setSuffix($conn['suffix']);
             }
-        } 
+            if (Configure::check($plugin.'.Datasources.'.$conn['name'].'.useOwner')) {
+                $this->setUseOwner(Configure::read($plugin.'.Datasources.'.$conn['name'].'.useOwner'));
+            } elseif (Configure::check('App.Datasources.'.$conn['name'].'.useOwner')) {
+                $this->setUseOwner(Configure::read('App.Datasources.'.$conn['name'].'.useOwner'));
+            } elseif (array_key_exists('useOwner', $conn)){
+                $this->setUseOwner($conn['useOwner']);
+            }
+       } 
 		else {
+            if (Configure::check('App.Datasources.'.$conn['name'].'.allowPrefix')) {
+                $this->setAllowPrefix(Configure::read('App.Datasources.'.$conn['name'].'.allowPrefix'));
+            } elseif (array_key_exists('allowPrefix', $conn)){
+                $this->setAllowPrefix($conn['allowPrefix']);
+            }
+            if (Configure::check('App.Datasources.'.$conn['name'].'.allowSuffix')) {
+                $this->setSuffix(Configure::read('App.Datasources.'.$conn['name'].'.allowSuffix'));
+            } elseif (array_key_exists('allowSuffix', $conn)){
+                $this->setSuffix($conn['allowSuffix']);
+            }
             if (Configure::check('App.Datasources.'.$conn['name'].'.prefix')) {
                 $this->setPrefix(Configure::read('App.Datasources.'.$conn['name'].'.prefix'));
             } elseif (array_key_exists('prefix', $conn)){
@@ -52,6 +88,11 @@ trait PrefixSuffixTableTrait {
                 $this->setSuffix(Configure::read('App.Datasources.'.$conn['name'].'.suffix'));
             } elseif (array_key_exists('suffix', $conn)){
                 $this->setSuffix($conn['suffix']);
+            }
+            if (Configure::check('App.Datasources.'.$conn['name'].'.useOwner')) {
+                $this->setUseOwner(Configure::read('App.Datasources.'.$conn['name'].'.useOwner'));
+            } elseif (array_key_exists('useOwner', $conn)){
+                $this->setUseOwner($conn['useOwner']);
             }
 		}
 
@@ -103,9 +144,30 @@ trait PrefixSuffixTableTrait {
 		return $this->_tableSuffix;
 	}
 	
+    public function setUseOwner($value)
+	{
+        $this->_useOwner = $value;
+        $this->setTable($this->getCleanTable('all'));
+    }
+	
+	public function getUseOwner()
+	{
+		return $this->_useOwner;
+	}
+	
+	public function getOwner()
+	{
+		return $this->_tableOwner;
+	}
+	
 	public function setTable($table)
     {
-		$this->_table = $this->getPrefix() . $table . $this->getSuffix();
+        $this->_tableSimpleName = $table;
+        $this->_table = $this->getPrefix() . $this->_tableSimpleName . $this->getSuffix();
+        
+        if ($this->_useOwner) {
+            $this->_table = $this->_tableOwner.'.'.$this->_table;
+        }
         return $this;
     }
 	
@@ -118,6 +180,10 @@ trait PrefixSuffixTableTrait {
                 $table = $this->getAlias();
             }
             $this->_table = $this->getPrefix() . Inflector::underscore($table) . $this->getSuffix();
+            
+            if ($this->_useOwner) {
+                $this->_table = $this->_tableOwner.'.'.$this->_table;
+            }
         }
 
         return $this->_table;
@@ -131,8 +197,11 @@ trait PrefixSuffixTableTrait {
             case 'suffix':
                 return str_replace($this->getSuffix(), '', $this->getTable());
             break;
+            case 'owner':
+                return str_replace($this->getOwner().'.', '', $this->getTable());
+            break;
             case 'all':
-                return str_replace(array($this->getPrefix(), $this->getSuffix()), array('', ''), $this->getTable());
+                return $this->_tableSimpleName;
             break;
         }
     }

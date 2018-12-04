@@ -4,7 +4,7 @@ namespace Custom\ORM\Association;
 use Cake\Core\App;
 use Cake\Utility\Inflector;
 
-trait PrefixSuffixBelongsToManyTrait {
+trait FullNameBelongsToManyTrait {
     
 	public function junction($table = null)
     {
@@ -17,7 +17,7 @@ trait PrefixSuffixBelongsToManyTrait {
             $table = $this->_through;
         } elseif ($table === null) {
             $tableName = $this->_junctionTableName();
-			$tableAlias = Inflector::camelize(str_replace(array($this->getSource()->getPrefix(), $this->getSource()->getSuffix()), array('', ''), $tableName));
+			$tableAlias = Inflector::camelize(str_replace(array($this->getSource()->getOwner().'.', $this->getSource()->getPrefix(), $this->getSource()->getSuffix()), array('', '', ''), $tableName));
 
             $config = [];
             if (!$tableLocator->exists($tableAlias)) {
@@ -54,23 +54,23 @@ trait PrefixSuffixBelongsToManyTrait {
      */
     protected function _junctionTableName($name = null)
     {
-		if ($name === null)
+        if ($name === null)
 		{
             if (empty($this->_junctionTableName))
 			{
                 $tablesNames = array_map('\Cake\Utility\Inflector::underscore', [
-                    str_replace(array($this->getSource()->getPrefix(), $this->getSource()->getSuffix()), array('', ''), $this->getSource()->getTable()),
-                    str_replace(array($this->getSource()->getPrefix(), $this->getSource()->getSuffix()), array('', ''), $this->getTarget()->getTable())
+                    str_replace(array($this->getSource()->getOwner().'.', $this->getSource()->getPrefix(), $this->getSource()->getSuffix()), array('', ''), $this->getSource()->getTable()),
+                    str_replace(array($this->getSource()->getOwner().'.', $this->getSource()->getPrefix(), $this->getSource()->getSuffix()), array('', ''), $this->getTarget()->getTable())
                 ]);
                 sort($tablesNames);
-                $this->_junctionTableName = $this->getSource()->getPrefix().implode('_', $tablesNames).$this->getSource()->getSuffix();
+                $this->_junctionTableName = $this->getSource()->getOwner().'.'.$this->getSource()->getPrefix().implode('_', $tablesNames).$this->getSource()->getSuffix();
             }
 
             return $this->_junctionTableName;
         } 
 		else 
 		{
-			$this->_junctionTableName = $this->getSource()->getPrefix().$name.$this->getSource()->getSuffix();
+            $this->_junctionTableName = $this->getSource()->getOwner().'.'.$this->getSource()->getPrefix().$name.$this->getSource()->getSuffix();
         	return $this->_junctionTableName;
 		}
 
