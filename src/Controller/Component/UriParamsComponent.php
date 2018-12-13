@@ -37,6 +37,13 @@ class UriParamsComponent extends Component
 	];
 
     /**
+     * Default configuration.
+     *
+     * @var array
+     */
+    protected $_isAuth = false;
+
+    /**
      * Constructor
      *
      * @param \Cake\Controller\ComponentRegistry $registry A ComponentRegistry for this component
@@ -47,6 +54,10 @@ class UriParamsComponent extends Component
         parent::__construct($registry, $config);
         $this->_controller = $registry->getController();
         $this->_session = $this->_controller->request->getSession();
+        
+        $components = $this->_controller->components()->loaded();
+        $this->_isAuth = in_array('Auth', $components);
+
     }
 
     public function clean () {
@@ -92,7 +103,10 @@ class UriParamsComponent extends Component
 
 	public function get ($key = NULL) {
         if ($key == 'all') {
-            $auth = (array) $this->_controller->Auth->storage()->read();
+            $auth = [];
+            if ($this->_isAuth) {
+                $auth = (array) $this->_controller->Auth->storage()->read();
+            }
 			return Hash::merge((array) Hash::get($auth, $this->getConfig('sessionKey')), (array) $this->_session->read($this->getConfig('sessionKey')));
 		} 
         else if (empty($key)) {
@@ -149,7 +163,10 @@ class UriParamsComponent extends Component
      * @return boolean
      */
 	protected function _inAuth($action) {
-		if ($this->_controller->Auth instanceof AuthComponent) {
+        if (!$this->_isAuth) {
+            return false;
+        }
+        if ($this->_controller->Auth instanceof AuthComponent) {
 
 			if (in_array($action, array_map('strtolower', $this->_controller->Auth->allowedActions))) {
 				return false;
