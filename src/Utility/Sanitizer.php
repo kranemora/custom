@@ -34,7 +34,7 @@ class Sanitizer
 			}
 			return $value;
 		}
-		return ($value === null && !$transformNullToString) ? $value : trim(preg_replace('/\s+/', ' ', $value));
+		return (($value === null && !$transformNullToString) || ($value !== null && !is_string($value))) ? $value : trim(preg_replace('/\s+/', ' ', $value));
 	}
 
 }
