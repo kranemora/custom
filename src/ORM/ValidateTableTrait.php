@@ -7,6 +7,25 @@ use Cake\ORM\Rule\ValidCount;
 
 trait ValidateTableTrait {
 
+    public function validateMultipleExistsIn($value, array $options, array $context = null)
+    {
+        if ($context === null) {
+            $context = $options;
+        }
+        
+        if (isset($context['data'][$context['field']]['_ids'])) {
+            $values = $context['data'][$context['field']]['_ids'];
+        }
+        
+        if (empty($values)) return true;
+            
+        foreach ($values as $value) {
+            $context['data'][$context['field']] = $value;
+            if (!$this->validateExistsIn($value, $options, $context)) return false;
+        }
+        return true;
+    }
+    
     public function validateExistsIn($value, array $options, array $context = null)
     {
 
@@ -31,6 +50,7 @@ trait ValidateTableTrait {
                 return false;
             }
         }
+
         $class = ExistsIn::class;
         $rule = new $class($fields, $options['table'], $options);
 
