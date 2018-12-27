@@ -18,4 +18,6 @@ class Table extends \Cake\ORM\Table
 {
 	use FullNameTableTrait;
     use OptimisticLockTableTrait;
+    use ValidateTableTrait;
+    
 }
